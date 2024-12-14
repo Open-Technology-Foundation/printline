@@ -1,0 +1,67 @@
+#!/bin/bash
+
+printline() {
+  local -i cols remaining
+  local -- oldstty ROW COL char="${1:-}"
+  [[ -z $char ]] && char='-'
+  char=${char:0:1}
+
+  [[ -n "${2:-}" ]] && {
+    printf '%s' "$2"
+  }
+
+  # Get terminal width
+  cols=$(tput cols || echo "${COLUMNS:-78}")
+
+  # Request cursor position
+  exec < /dev/tty
+  oldstty=$(stty -g)
+  stty raw -echo
+
+  # Send cursor position request
+  printf "\033[6n" > /dev/tty
+  # Read the response: ESC [ rows ; cols R
+  IFS=';' read -r -d R ROW COL
+  # Restore terminal settings
+  stty "$oldstty"
+
+  # Calculate remaining columns
+  remaining=$((cols - COL + 1))
+  # Ensure remaining is non-negative
+  ((remaining < 0)) && remaining=0
+
+  # Print the character 'remaining' times
+  printf "%0.s$char" $(seq 1 "$remaining")
+  printf "\n"
+}
+
+# Only run main if the script is being executed directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  set -euo pipefail
+  [[ ${1:-} == '-h' || ${1:-} == '--help' ]] && {
+    cat <<-EOT
+printline 0.5
+
+Print a line of repeated chars from the current
+cursor position to the end of the line.
+
+usage: printline [char [text]]
+
+char is any single printable character. default '-'.
+text is any text to print before the line chars.
+
+examples:
+  printline
+  printline '='
+  echo -n "123 abc "; printline '#'
+  printline '*' '# topic header '
+  printline '=' '    ## section 1 '
+  printline '-' '        ### subsection 1 '
+EOT
+  exit 0
+  }
+
+  printline "$@"
+fi
+
+#fin
