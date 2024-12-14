@@ -6,9 +6,7 @@ printline() {
   [[ -z $char ]] && char='-'
   char=${char:0:1}
 
-  [[ -n "${2:-}" ]] && {
-    printf '%s' "$2"
-  }
+  [[ -n "${2:-}" ]] && printf '%s' "$2"
 
   # Get terminal width
   cols=$(tput cols || echo "${COLUMNS:-78}")
@@ -38,25 +36,28 @@ printline() {
 # Only run main if the script is being executed directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   set -euo pipefail
+  readonly -- PRG0="$(readlink -en -- "$0")"
+  #shellcheck disable=SC2034
+  readonly -- PRGDIR="${PRG0%/*}" PRG="${PRG0##*/}"
   [[ ${1:-} == '-h' || ${1:-} == '--help' ]] && {
     cat <<-EOT
-printline 0.5
+$PRG $(cat "$PRGDIR"/.version)
 
 Print a line of repeated chars from the current
 cursor position to the end of the line.
 
-usage: printline [char [text]]
+usage: $PRG [char [text]]
 
 char is any single printable character. default '-'.
 text is any text to print before the line chars.
 
 examples:
-  printline
-  printline '='
+  $PRG
+  $PRG '='
   echo -n "123 abc "; printline '#'
-  printline '*' '# topic header '
-  printline '=' '    ## section 1 '
-  printline '-' '        ### subsection 1 '
+  $PRG '*' '# topic header '
+  $PRG '=' '    ## section 1 '
+  $PRG '-' '        ### subsection 1 '
 EOT
   exit 0
   }
