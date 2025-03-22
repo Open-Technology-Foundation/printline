@@ -2,6 +2,8 @@
 
 A simple bash utility to draw a line from the current cursor position to the end of the terminal line.
 
+The script is modular and can be safely sourced from other scripts to use the `printline()` function directly.
+
 ## Usage
 
 ```bash
@@ -26,6 +28,10 @@ printline '*' '# Header '
 
 # Combined with echo
 echo -n "Title: "; printline
+
+# Source in another script
+source /path/to/printline
+printline '-' 'Section: '
 ```
 
 ## Installation
