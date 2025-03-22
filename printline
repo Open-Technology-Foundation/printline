@@ -2,26 +2,43 @@
 
 printline() {
   local -i cols remaining
-  local -- oldstty ROW COL char="${1:-}"
+  local -- oldstty row_col char="${1:-}" prefix="${2:-}"
+  local -- COL=1
   [[ -z $char ]] && char='-'
   char=${char:0:1}
 
-  [[ -n "${2:-}" ]] && printf '%s' "$2"
+  # Print prefix text if provided
+  [[ -n "$prefix" ]] && printf '%s' "$prefix"
 
   # Get terminal width
-  cols=$(tput cols || echo "${COLUMNS:-78}")
+  cols=$(tput cols 2>/dev/null || echo "${COLUMNS:-78}")
 
-  # Request cursor position
-  exec < /dev/tty
-  oldstty=$(stty -g)
-  stty raw -echo
-
-  # Send cursor position request
-  printf "\033[6n" > /dev/tty
-  # Read the response: ESC [ rows ; cols R
-  IFS=';' read -r -d R ROW COL
-  # Restore terminal settings
-  stty "$oldstty"
+  # Only try to get cursor position if we're in a terminal
+  if [[ -t 1 && -c /dev/tty ]]; then
+    # Save stdin
+    exec {SAVED_STDIN}<&0
+    
+    # Set up terminal for raw input
+    exec < /dev/tty
+    oldstty=$(stty -g)
+    stty raw -echo min 0 time 1
+    
+    # Request cursor position
+    printf "\033[6n" > /dev/tty
+    
+    # Read the response: ESC [ rows ; cols R
+    # Parse out just the column number
+    read -r -d R row_col
+    if [[ $row_col =~ \[([0-9]+)\;([0-9]+)$ ]]; then
+      # We only need the column number
+      COL=${BASH_REMATCH[2]}
+    fi
+    
+    # Restore terminal settings
+    stty "$oldstty"
+    # Restore stdin
+    exec <&$SAVED_STDIN
+  fi
 
   # Calculate remaining columns
   remaining=$((cols - COL + 1))
@@ -36,8 +53,11 @@ printline() {
 # Only run main if the script is being executed directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   set -euo pipefail
-  readonly -- PRG0="$(readlink -en -- "$0")"
-  #shellcheck disable=SC2034
+  # Capture script path, avoiding SC2155
+  PRG0="$(readlink -en -- "$0")"
+  readonly -- PRG0
+  
+  #shellcheck disable=SC2034 # Used in help text
   readonly -- PRGDIR="${PRG0%/*}" PRG="${PRG0##*/}"
   [[ ${1:-} == '-h' || ${1:-} == '--help' ]] && {
     cat <<-EOT
